@@ -40,6 +40,7 @@ namespace PCMonitorPanel
         public double? warn { get; set; }
         public double? crit { get; set; }
         public bool lowIsBad { get; set; }       // warn/crit trigger at or below the thresholds (e.g. drive life)
+        public bool sameRow { get; set; }        // share the previous row, side by side (e.g. C: | G:)
         public double scale { get; set; }        // value multiplier, 0 treated as 1
         public string agg { get; set; }          // first | max | min | sum | avg
         public string special { get; set; }      // "ping" for the built-in pinger
@@ -397,24 +398,33 @@ namespace PCMonitorPanel
 
         void DrawColumn(Graphics g, List<Metric> col, float x, float top, float w, float h)
         {
+            // group metrics into rows: a metric with sameRow joins the previous row of the same section
+            var rows = new List<List<Metric>>();
             var secs = new List<string>();
-            foreach (var m in col) if (!secs.Contains(m.Def.section)) secs.Add(m.Def.section);
-            float secH = fSec.Height + 6, gap = 6;
-            float rowH = (h - secs.Count * (secH + gap)) / col.Count;
+            foreach (var m in col)
+            {
+                if (!secs.Contains(m.Def.section)) secs.Add(m.Def.section);
+                var last = rows.Count > 0 ? rows[rows.Count - 1] : null;
+                if (m.Def.sameRow && last != null && last[0].Def.section == m.Def.section) last.Add(m);
+                else rows.Add(new List<Metric> { m });
+            }
+            float secH = fSec.Height + 6, gap = 6, cellGap = 14;
+            float rowH = (h - secs.Count * (secH + gap)) / rows.Count;
             float y = top;
             string cur = null;
             Color accent = TextHi;
-            foreach (var m in col)
+            foreach (var row in rows)
             {
-                if (m.Def.section != cur)
+                if (row[0].Def.section != cur)
                 {
-                    cur = m.Def.section; accent = ParseColor(sections[cur].color);
+                    cur = row[0].Def.section; accent = ParseColor(sections[cur].color);
                     y += gap;
                     using (var b = new SolidBrush(accent)) g.DrawString(cur, fSec, b, x - 2, y + 1);
                     using (var p = new Pen(Color.FromArgb(70, accent))) g.DrawLine(p, x + g.MeasureString(cur, fSec).Width + 2, y + secH / 2f + 1, x + w, y + secH / 2f + 1);
                     y += secH;
                 }
-                DrawRow(g, m, accent, x, y, w, rowH);
+                float cw = (w - cellGap * (row.Count - 1)) / row.Count;
+                for (int i = 0; i < row.Count; i++) DrawRow(g, row[i], accent, x + i * (cw + cellGap), y, cw, rowH);
                 y += rowH;
             }
         }
@@ -432,17 +442,20 @@ namespace PCMonitorPanel
             using (var b = new SolidBrush(Level(d, m.Last))) g.DrawString(val, fValue, b, x + w - us.Width - vs.Width + 6, y - 1);
             using (var b = new SolidBrush(TextDim)) g.DrawString(unit, fUnit, b, x + w - us.Width + 2, y + (fValue.Height - fUnit.Height) * 0.8f);
 
-            int px = (int)w;
-            int span = historyMode == 0 ? px : Math.Min(m.Count, 3600);
+            // fixed time window (7 min or 1 hr) mapped onto the cell width; newest sample at the right edge
+            int px = Math.Max(1, (int)w);
+            int span = historyMode == 0 ? 420 : 3600;
             int avail = Math.Min(m.Count, span);
             if (avail < 2 || gh < 6) return;
-            int buckets = Math.Min(px, avail);
-            double per = avail / (double)buckets;
+            int buckets = Math.Min(px, span);
+            double per = span / (double)buckets;
             var vals = new double[buckets];
             double lo = double.MaxValue, hi = double.MinValue;
             for (int i = 0; i < buckets; i++)
             {
+                vals[i] = double.NaN;
                 int a = (int)(i * per), z = Math.Max(a + 1, (int)((i + 1) * per));
+                if (a >= avail) continue;
                 double mx = double.NaN;
                 for (int k = a; k < z && k < avail; k++) { double v = m.Ago(k); if (!double.IsNaN(v) && (double.IsNaN(mx) || v > mx)) mx = v; }
                 vals[i] = mx;
@@ -460,7 +473,7 @@ namespace PCMonitorPanel
                 float wy = gy + gh - (float)((d.warn.Value - min) / (max - min)) * gh;
                 using (var p = new Pen(Color.FromArgb(90, WarnC))) { p.DashStyle = DashStyle.Dash; g.DrawLine(p, x, wy, x + w, wy); }
             }
-            float step = w / (float)(historyMode == 0 ? px : buckets);
+            float step = w / (float)buckets;
             var pts = new List<PointF>();
             PointF peak = PointF.Empty, valley = PointF.Empty;
             for (int i = 0; i < buckets; i++)

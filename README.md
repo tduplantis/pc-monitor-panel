@@ -93,6 +93,7 @@ Each row in `metrics` maps to one or more HWiNFO readings using regular expressi
 | `min`, `max` | Graph scale; `max: 0` means autoscale |
 | `warn`, `crit` | Value turns yellow or red at or above these (optional) |
 | `lowIsBad` | `true` flips `warn` and `crit` to trigger at or below the value, for things like drive life |
+| `sameRow` | `true` puts this row side by side with the previous row in the same section, each at half width (for example C: and G: drive temps) |
 | `scale` | Multiplier, for example `0.0009765625` turns MB into GB, `0.008` turns KB/s into Mbps |
 | `agg` | How to combine multiple matching readings: `first` (default), `max`, `min`, `sum`, `avg` |
 | `sources` | List of `{ sensor, label, unit }` regex filters. The first source that matches anything wins, so you can list fallbacks for different hardware |
