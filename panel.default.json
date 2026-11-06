@@ -18,6 +18,7 @@
     { "name": "MEMORY",   "color": "#AB82FF", "column": 1 },
     { "name": "BOARD",    "color": "#4DB6FF", "column": 1 },
     { "name": "STORAGE",  "color": "#FFCA28", "column": 1 },
+    { "name": "DRIVE HEALTH", "color": "#C6E06B", "column": 1 },
     { "name": "NETWORK",  "color": "#26DED2", "column": 1 },
     { "name": "FRAMES",   "color": "#FF63B4", "column": 1 }
   ],
@@ -82,6 +83,11 @@
     { "section": "STORAGE", "label": "All drives read+write", "unit": "MB/s", "format": "0", "min": 0, "max": 0, "agg": "sum",
       "sources": [ { "sensor": "^Drive:", "label": "^(Read|Write) Rate$" } ] },
 
+    { "section": "DRIVE HEALTH", "label": "C: life remaining", "unit": "%", "format": "0", "min": 0, "max": 100, "warn": 20, "crit": 10, "lowIsBad": true, "agg": "min",
+      "sources": [ { "sensor": "^S\\.M\\.A\\.R\\.T\\..*\\[[^\\]]*C:", "label": "^Drive Remaining Life$" } ] },
+    { "section": "DRIVE HEALTH", "label": "Lowest drive life (all)", "unit": "%", "format": "0", "min": 0, "max": 100, "warn": 20, "crit": 10, "lowIsBad": true, "agg": "min",
+      "sources": [ { "sensor": "^S\\.M\\.A\\.R\\.T\\.", "label": "^Drive Remaining Life$" } ] },
+
     { "section": "NETWORK", "label": "Download", "unit": "Mbps", "format": "0.0", "min": 0, "max": 0, "agg": "sum", "scale": 0.008,
       "sources": [ { "sensor": "^Network:", "label": "^Current DL rate$" } ] },
     { "section": "NETWORK", "label": "Upload", "unit": "Mbps", "format": "0.0", "min": 0, "max": 0, "agg": "sum", "scale": 0.008,
@@ -89,8 +95,6 @@
     { "section": "NETWORK", "label": "Ping", "unit": "ms", "format": "0", "min": 0, "max": 0, "warn": 60, "crit": 150, "special": "ping" },
 
     { "section": "FRAMES", "label": "Framerate", "unit": "FPS", "format": "0", "min": 0, "max": 0,
-      "sources": [ { "sensor": "^RTSS$", "label": "^Framerate$" } ] },
-    { "section": "FRAMES", "label": "Frame time", "unit": "ms", "format": "0.0", "min": 0, "max": 0,
-      "sources": [ { "sensor": "^RTSS$", "label": "^Frame ?[Tt]ime$" } ] }
+      "sources": [ { "sensor": "^RTSS$", "label": "^Framerate$" } ] }
   ]
 }

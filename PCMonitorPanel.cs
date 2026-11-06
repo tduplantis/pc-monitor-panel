@@ -39,6 +39,7 @@ namespace PCMonitorPanel
         public double max { get; set; }          // 0 = autoscale
         public double? warn { get; set; }
         public double? crit { get; set; }
+        public bool lowIsBad { get; set; }       // warn/crit trigger at or below the thresholds (e.g. drive life)
         public double scale { get; set; }        // value multiplier, 0 treated as 1
         public string agg { get; set; }          // first | max | min | sum | avg
         public string special { get; set; }      // "ping" for the built-in pinger
@@ -341,6 +342,12 @@ namespace PCMonitorPanel
         Color Level(MetricDef d, double v)
         {
             if (double.IsNaN(v)) return TextDim;
+            if (d.lowIsBad)
+            {
+                if (d.crit.HasValue && v <= d.crit.Value) return CritC;
+                if (d.warn.HasValue && v <= d.warn.Value) return WarnC;
+                return TextHi;
+            }
             if (d.crit.HasValue && v >= d.crit.Value) return CritC;
             if (d.warn.HasValue && v >= d.warn.Value) return WarnC;
             return TextHi;

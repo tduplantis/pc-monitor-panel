@@ -1,6 +1,6 @@
 # PC Monitor Panel
 
-A borderless, always-on-top desktop sensor panel for Windows, built for a **3440x1440 ultrawide**. It fills a strip on the right edge of that monitor with live numbers and history graphs for every sensor worth watching: GPU, CPU, memory, board, storage, network, and in-game framerate.
+A borderless, always-on-top desktop sensor panel for Windows, built for a **3440x1440 ultrawide**. It fills a strip on the right edge of that monitor with live numbers and history graphs for every sensor worth watching: GPU, CPU, memory, board, storage, SSD life remaining, network, and in-game framerate.
 
 All data comes from [HWiNFO](https://www.hwinfo.com/) through its shared memory interface. Framerate and frametime come from [RivaTuner Statistics Server](https://www.guru3d.com/download/rtss-rivatuner-statistics-server-download/) through HWiNFO's built-in RTSS integration, so nothing draws inside your games.
 
@@ -15,6 +15,7 @@ All data comes from [HWiNFO](https://www.hwinfo.com/) through its shared memory 
 * History of 7 minutes (one pixel per second) or 1 hour (right-click to switch)
 * Header with clock, NVIDIA GPU performance limiter (PWR, THERM, VREL, VOP, UTIL), and new WHEA hardware errors since launch
 * Built-in ping graph
+* Drive health section with SSD life remaining (goes yellow at 20%, red at 10%). The default shows C: and the lowest of all drives; point a row at a specific drive letter in `panel.json`, for example `"sensor": "^S\\.M\\.A\\.R\\.T\\..*\\[[^\\]]*G:"`
 * Detects a stalled HWiNFO feed and says so instead of showing frozen numbers
 * Rows with no matching sensor on your hardware hide themselves
 * Everything is defined in `panel.json`: sensors, labels, thresholds, colors, columns, monitor, width
@@ -91,6 +92,7 @@ Each row in `metrics` maps to one or more HWiNFO readings using regular expressi
 | `label`, `unit`, `format` | What the row shows; `format` is a .NET number format like `0`, `0.0` |
 | `min`, `max` | Graph scale; `max: 0` means autoscale |
 | `warn`, `crit` | Value turns yellow or red at or above these (optional) |
+| `lowIsBad` | `true` flips `warn` and `crit` to trigger at or below the value, for things like drive life |
 | `scale` | Multiplier, for example `0.0009765625` turns MB into GB, `0.008` turns KB/s into Mbps |
 | `agg` | How to combine multiple matching readings: `first` (default), `max`, `min`, `sum`, `avg` |
 | `sources` | List of `{ sensor, label, unit }` regex filters. The first source that matches anything wins, so you can list fallbacks for different hardware |
