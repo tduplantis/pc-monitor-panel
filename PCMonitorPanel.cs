@@ -43,7 +43,8 @@ namespace PCMonitorPanel
         public bool sameRow { get; set; }        // share the previous row, side by side (e.g. C: | G:)
         public double scale { get; set; }        // value multiplier, 0 treated as 1
         public string agg { get; set; }          // first | max | min | sum | avg
-        public string special { get; set; }      // "ping" for the built-in pinger
+        public string special { get; set; }      // "ping" for the built-in pinger, "refresh" for a monitor's refresh rate
+        public string display { get; set; }      // for "refresh": regex on the monitor name, hardware id or device name like DISPLAY2 (empty = primary)
         public List<SourceDef> sources { get; set; }
     }
 
@@ -126,6 +127,70 @@ namespace PCMonitorPanel
                 Ok = true;
             }
             catch { Ok = false; }
+        }
+    }
+
+    // ================= monitor refresh rate (current display mode, not live VRR) =================
+    static class Displays
+    {
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        struct DISPLAY_DEVICE
+        {
+            public int cb;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string DeviceName;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceString;
+            public int StateFlags;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceID;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceKey;
+        }
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        struct DEVMODE
+        {
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string dmDeviceName;
+            public short dmSpecVersion, dmDriverVersion, dmSize, dmDriverExtra;
+            public int dmFields, x, y, dmDisplayOrientation, dmDisplayFixedOutput;
+            public short dmColor, dmDuplex, dmYResolution, dmTTOption, dmCollate;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string dmFormName;
+            public short dmLogPixels;
+            public int dmBitsPerPel, dmPelsWidth, dmPelsHeight, dmDisplayFlags, dmDisplayFrequency;
+        }
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool EnumDisplayDevices(string dev, int i, ref DISPLAY_DEVICE dd, int flags);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool EnumDisplaySettings(string dev, int mode, ref DEVMODE dm);
+
+        static Dictionary<string, string> cache = new Dictionary<string, string>();   // pattern -> device name
+        static DateTime cacheAt = DateTime.MinValue;
+
+        static string Find(string pattern)
+        {
+            if (string.IsNullOrEmpty(pattern)) return Screen.PrimaryScreen.DeviceName;
+            if ((DateTime.Now - cacheAt).TotalSeconds > 30) { cache.Clear(); cacheAt = DateTime.Now; }
+            string hit;
+            if (cache.TryGetValue(pattern, out hit)) return hit;
+            var rx = new Regex(pattern, RegexOptions.IgnoreCase);
+            for (int i = 0; i < 32 && hit == null; i++)
+            {
+                var a = new DISPLAY_DEVICE(); a.cb = Marshal.SizeOf(a);
+                if (!EnumDisplayDevices(null, i, ref a, 0)) break;
+                if ((a.StateFlags & 1) == 0) continue;   // not attached to the desktop
+                if (rx.IsMatch(a.DeviceName)) { hit = a.DeviceName; break; }
+                for (int j = 0; j < 8; j++)
+                {
+                    var m = new DISPLAY_DEVICE(); m.cb = a.cb;
+                    if (!EnumDisplayDevices(a.DeviceName, j, ref m, 0)) break;
+                    if (rx.IsMatch(m.DeviceString ?? "") || rx.IsMatch(m.DeviceID ?? "")) { hit = a.DeviceName; break; }
+                }
+            }
+            cache[pattern] = hit;
+            return hit;
+        }
+
+        public static double RefreshRate(string pattern)
+        {
+            string dev = Find(pattern);
+            if (dev == null) return double.NaN;
+            var dm = new DEVMODE(); dm.dmSize = (short)Marshal.SizeOf(dm);
+            if (!EnumDisplaySettings(dev, -1, ref dm) || dm.dmDisplayFrequency <= 1) return double.NaN;
+            return dm.dmDisplayFrequency;
         }
     }
 
@@ -276,6 +341,7 @@ namespace PCMonitorPanel
         double Value(Metric m)
         {
             if (m.Def.special == "ping") return pingMs < 0 ? double.NaN : pingMs;
+            if (m.Def.special == "refresh") return Displays.RefreshRate(m.Def.display);
             if (m.Idx.Count == 0) return double.NaN;
             string agg = (m.Def.agg ?? "first").ToLower();
             double acc = double.NaN; int n = 0;
@@ -295,7 +361,7 @@ namespace PCMonitorPanel
             return acc * (m.Def.scale == 0 ? 1 : m.Def.scale);
         }
 
-        bool IsShown(Metric m) { return !resolvedOnce || m.Found || m.Def.special == "ping"; }
+        bool IsShown(Metric m) { return !resolvedOnce || m.Found || !string.IsNullOrEmpty(m.Def.special); }
 
         int tickN;
         void Tick()
@@ -305,7 +371,7 @@ namespace PCMonitorPanel
             foreach (var m in metrics)
             {
                 double v = double.NaN;
-                if ((feed.Ok && !feed.Stale) || m.Def.special == "ping") { try { v = Value(m); } catch { } }
+                if ((feed.Ok && !feed.Stale) || !string.IsNullOrEmpty(m.Def.special)) { try { v = Value(m); } catch { } }
                 m.Push(v);
             }
             if (feed.Ok && double.IsNaN(wheaBase)) wheaBase = WheaTotal();

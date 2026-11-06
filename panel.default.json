@@ -43,6 +43,8 @@
                    { "sensor": "^d?GPU \\[#\\d+\\]", "label": "^GPU D3D Memory Dedicated$" } ] },
     { "section": "GPU", "label": "Fan", "unit": "%", "format": "0", "min": 0, "max": 100, "warn": 85, "crit": 95,
       "sources": [ { "sensor": "^d?GPU \\[#\\d+\\]", "label": "^GPU Fan ?1?$", "unit": "%" } ] },
+    { "section": "GPU", "label": "Refresh", "unit": "Hz", "format": "0", "min": 0, "max": 0, "sameRow": true,
+      "special": "refresh", "display": "" },
 
     { "section": "CPU", "label": "Load", "unit": "%", "format": "0", "min": 0, "max": 100,
       "sources": [ { "sensor": "^CPU \\[#0\\]", "label": "^Total CPU Usage$" } ] },

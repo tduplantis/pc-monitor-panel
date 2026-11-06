@@ -97,7 +97,8 @@ Each row in `metrics` maps to one or more HWiNFO readings using regular expressi
 | `scale` | Multiplier, for example `0.0009765625` turns MB into GB, `0.008` turns KB/s into Mbps |
 | `agg` | How to combine multiple matching readings: `first` (default), `max`, `min`, `sum`, `avg` |
 | `sources` | List of `{ sensor, label, unit }` regex filters. The first source that matches anything wins, so you can list fallbacks for different hardware |
-| `special` | `"ping"` for the built-in pinger (uses `pingHost`) |
+| `special` | `"ping"` for the built-in pinger (uses `pingHost`), `"refresh"` for a monitor's refresh rate |
+| `display` | For `"refresh"`: regex on the monitor name, hardware id or device name, for example `"PG32UCDP"`, `"AUS32F4"` or `"DISPLAY2"`. Empty means the primary monitor. This is the refresh rate Windows has set for that monitor, not the live G-Sync/FreeSync rate |
 
 The sensor and label names are exactly what HWiNFO shows in its sensors window. Sensor names look like `CPU [#0]: AMD Ryzen 9 7950X3D: Enhanced` or `dGPU [#0]: NVIDIA GeForce RTX 3090 Ti`. The default config is written to work on most NVIDIA, AMD and Intel systems, but board sensors (VRM, chipset, fans) vary by motherboard vendor, so expect to tweak those patterns for your board.
 
